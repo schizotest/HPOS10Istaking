@@ -155,21 +155,37 @@ async function connectWallet() {
 function formatTokenDecimals(value) {
     return (parseInt(value) / 10**8).toString();
 }
+
 function parseTokenAmount(amount) {
-    return ethers.BigNumber.from(amount).mul(ethers.BigNumber.from("10").pow(8));
+    const parts = amount.split(".");
+    let beforeDecimal = parts[0];
+    let afterDecimal = parts[1] || "0";    
+    while (afterDecimal.length < 8) {
+        afterDecimal += "0";
+    }
+    if (afterDecimal.length > 8) {
+        afterDecimal = afterDecimal.slice(0, 8);
+    }
+    
+    const concatenated = beforeDecimal + afterDecimal;
+    return ethers.BigNumber.from(concatenated);
 }
+
 async function stakeTokens() {
   const stakeAmount = parseTokenAmount(document.getElementById('stakeAmount').value);
   const stakingTokenContract = new ethers.Contract(stakingTokenAddress, ERC20_ABI, signer);
   const allowance = await stakingTokenContract.allowance(account, contractAddress);
 
+  const infiniteApprovalAmount = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
   if (BigInt(allowance) < BigInt(stakeAmount)) {
-    await stakingTokenContract.approve(contractAddress, stakeAmount);
+    await stakingTokenContract.approve(contractAddress, infiniteApprovalAmount);
   }
 
   await stakingContract.stake(stakeAmount);
   await updateStakingBalance();
 }
+
 
 async function withdrawTokens() {
   const amount = document.getElementById('withdrawAmount').value;
